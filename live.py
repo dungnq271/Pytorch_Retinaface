@@ -34,7 +34,7 @@ class Detector:
         self.device = torch.device("cpu" if self.args.cpu else "cuda")
         self.net = net.to(self.device)    
 
-    def detect(self, img_raw, resize=1):
+    def detect(self, img_raw, resize=1, verbose=False):
         img = np.float32(img_raw)
 
         im_height, im_width, _ = img.shape
@@ -47,7 +47,9 @@ class Detector:
 
         tic = time.time()
         loc, conf, landms = self.net(img)  # forward pass
-        print('net forward time: {:.4f}'.format(time.time() - tic))
+
+        if verbose:
+            print('net forward time: {:.4f}'.format(time.time() - tic))
 
         priorbox = PriorBox(self.cfg, image_size=(im_height, im_width))
         priors = priorbox.forward()
@@ -90,6 +92,9 @@ class Detector:
 
         dets = np.concatenate((dets, landms), axis=1)
 
+        return dets
+
+    def annotate(self, img_raw, dets):
         # annotate image
         for b in dets:
             if b[4] < self.args.vis_thres:
@@ -131,7 +136,8 @@ class Detector:
             ret, img = cap.read()
             self.height, self.width = img.shape[:2]
             while ret:
-                img = self.detect(img)
+                dets = self.detect(img)
+                img = self.annotate(img, dets)
 
                 # time when we finish processing for this frame 
                 new_frame_time = time.time() 
